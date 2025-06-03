@@ -110,7 +110,6 @@ def report(start, end, db_path):
             click.echo("⚠️ No records found for the specified date range.")
             return
 
-        # 输出所有明细
         detail_table = PrettyTable()
         detail_table.field_names = ["Date", "Amount", "Category", "Note"]
         for _, row in df.iterrows():
@@ -118,7 +117,6 @@ def report(start, end, db_path):
         click.echo("\n📋 Records:")
         click.echo(detail_table)
 
-        # 分类汇总
         summary = df.groupby("category")["amount"].sum()
         summary_table = PrettyTable()
         summary_table.field_names = ["Category", "Total Amount"]
