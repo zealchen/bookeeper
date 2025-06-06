@@ -8,7 +8,7 @@ from prettytable import PrettyTable
 DEFAULT_DB = "my.db"
 CATEGORIES = [
     "Food", "Transport", "Housing", "Utilities",
-    "Entertainment", "Shopping", "Healthcare", "Education", "Other"
+    "Entertainment", "Shopping", "Healthcare", "Education", "Cloud", "Loan", "Other"
 ]
 
 def get_db_connection(db_path):
@@ -77,14 +77,13 @@ def export_records(output, db_path):
     try:
         ensure_table_exists(db_path)
         conn = get_db_connection(db_path)
-        df = pd.read_sql_query("SELECT date, amount, category, note FROM records", conn)
+        df = pd.read_sql_query("SELECT id, date, amount, category, note FROM records", conn)
         df.to_excel(output, index=False)
         click.echo(f"✅ Records exported to {output}")
     except Exception as e:
         click.echo(f"❌ Error exporting to Excel: {e}")
     finally:
         conn.close()
-        
 
 @cli.command(name="report")
 @click.option('--start', required=True, help='Start date (inclusive) in YYYY-MM-DD')
@@ -100,7 +99,7 @@ def report(start, end, db_path):
         ensure_table_exists(db_path)
         conn = get_db_connection(db_path)
         df = pd.read_sql_query('''
-            SELECT date, amount, category, note
+            SELECT id, date, amount, category, note
             FROM records
             WHERE date BETWEEN ? AND ?
             ORDER BY date ASC
@@ -111,9 +110,9 @@ def report(start, end, db_path):
             return
 
         detail_table = PrettyTable()
-        detail_table.field_names = ["Date", "Amount", "Category", "Note"]
+        detail_table.field_names = ["ID", "Date", "Amount", "Category", "Note"]
         for _, row in df.iterrows():
-            detail_table.add_row([row["date"], f"{row['amount']:.2f}", row["category"], row["note"]])
+            detail_table.add_row([row["id"], row["date"], f"{row['amount']:.2f}", row["category"], row["note"]])
         click.echo("\n📋 Records:")
         click.echo(detail_table)
 
@@ -132,6 +131,25 @@ def report(start, end, db_path):
     except Exception as e:
         click.echo(f"❌ Error generating report: {e}")
 
+@cli.command(name="delete-record")
+@click.option('--id', required=True, type=int, help='ID of the record to delete')
+@click.option('--db-path', default=DEFAULT_DB, show_default=True, help="Path to the SQLite database")
+def delete_record(id, db_path):
+    """Delete a record by its ID."""
+    try:
+        ensure_table_exists(db_path)
+        conn = get_db_connection(db_path)
+        c = conn.cursor()
+        c.execute('DELETE FROM records WHERE id = ?', (id,))
+        conn.commit()
+        if c.rowcount > 0:
+            click.echo(f"🗑️ Record with ID {id} deleted successfully.")
+        else:
+            click.echo(f"⚠️ No record found with ID {id}.")
+    except Exception as e:
+        click.echo(f"❌ Error deleting record: {e}")
+    finally:
+        conn.close()
 
 if __name__ == '__main__':
     cli()
